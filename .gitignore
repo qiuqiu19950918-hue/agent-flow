@@ -1,0 +1,30 @@
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志与临时文件
+*.log
+*.tmp
+*.bak
+
+# ZCode / Agent 运行时缓存（保留 skills 源文件，忽略运行时产物）
+.zcode/cache/
+.zcode/logs/
+.agents/cache/
+
+# Node（若后续加脚本）
+node_modules/
+npm-debug.log*
+
+# 构建产物
+dist/
+build/
+target/
