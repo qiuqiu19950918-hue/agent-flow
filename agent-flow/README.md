@@ -11,7 +11,7 @@
 |---|---|
 | `SKILL.md` | Skill 入口：元数据 + 工作流规范 + 分级错误处理 |
 | `retrieval.md` | 检索子 Agent 规范（code-retriever / Explore 兜底） |
-| `execution.md` | 执行子 Agent 规范（Code-Executor / general-purpose 兜底） |
+| `execution.md` | 执行子 Agent 规范（code-executor / general-purpose 兜底） |
 | `command.md` | 命令子 Agent 规范（cmd-executor） |
 
 ## 安装路径

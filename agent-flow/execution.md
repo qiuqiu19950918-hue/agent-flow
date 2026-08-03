@@ -4,7 +4,7 @@
 负责"改代码 / 写代码"，严格按主 Agent 提供的蓝图精确落地，**不做任何额外改动**。
 
 ## 首选与兜底
-- **首选**：`Code-Executor` —— 代码实施专家，使用 Edit/Write 精确修改或新增文件。（工具：Read, Edit, Write）
+- **首选**：`code-executor` —— 代码实施专家，使用 Edit/Write 精确修改或新增文件。（工具：Read, Edit, Write）
 - **兜底**：`general-purpose` —— 通用多步任务 Agent，工具全集，可处理更复杂的实施逻辑。
 
 ## 主 Agent 调度它时必须提供（执行蓝图）
@@ -14,7 +14,7 @@
 
 ## 输出契约
 ```
-[角色] Code-Executor / general-purpose
+[角色] code-executor / general-purpose
 [模型] <自身模型名>
 [结论] 已修改 / 新增的文件清单 + 每处改动一句话摘要
 [证据] path/to/file.ext —— <改动摘要>

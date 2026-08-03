@@ -32,11 +32,11 @@
 
 ---
 
-## 2. 🛠 Code-Executor — 执行子 Agent
+## 2. 🛠 code-executor — 执行子 Agent
 
 | 配置项 | 值 |
 |---|---|
-| **名称** | `Code-Executor` |
+| **名称** | `code-executor` |
 | **颜色标记** | 绿色 |
 | **描述** | 代码实施专家。严格按照主Agent提供的执行蓝图，使用Edit/Write工具精确修改或新增文件，不做任何额外改动。 |
 | **可用工具** | `Read`、`Edit`、`Write` |
@@ -96,4 +96,4 @@ text
 在新环境中复刻这三个子 Agent 时：
 1. 在 ZCode 客户端「子智能体」管理界面分别新建三条记录，按上表填写名称/颜色/描述/工具。
 2. 将各「系统提示词」框内文字原样粘贴。
-3. 确认三个子 Agent 与本仓库 `SKILL.md` 中引用的名称完全一致（区分大小写：`code-retriever`、`Code-Executor`、`cmd-executor`）。
+3. 确认三个子 Agent 与本仓库 `SKILL.md` 中引用的名称完全一致（区分大小写：`code-retriever`、`code-executor`、`cmd-executor`）。

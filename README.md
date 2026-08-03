@@ -33,7 +33,7 @@ cp -r agent-flow ~/.agents/skills/agent-flow
 | 子 Agent | 颜色 | 职责 |
 |---|---|---|
 | `code-retriever` | 蓝色 | 检索定位代码 + broad fan-out 大范围扫描 |
-| `Code-Executor` | 绿色 | 按蓝图精确改写文件 |
+| `code-executor` | 绿色 | 按蓝图精确改写文件 |
 | `cmd-executor` | 橙色 | 安全执行构建/测试/部署命令 |
 
 请按 `agents.md` 在 ZCode 客户端「子智能体」中复刻这三个子 Agent。

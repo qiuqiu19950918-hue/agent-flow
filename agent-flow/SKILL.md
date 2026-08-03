@@ -23,7 +23,7 @@ description: 定义了主Agent调度检索、执行、命令三个子Agent的标
 | 子角色（逻辑层） | 内置 subagent_type（执行层） | 职责 | 可用工具 |
 |---|---|---|---|
 | 📡 检索（Retrieval） | `code-retriever`（首选，含 broad fan-out）/ `Explore`（兜底） | 精准定位代码（符号/定义/片段）**及** broad fan-out 大范围扫描目录与内容；Explore 仅在需联网/shell 管道时兜底 | Read, Grep, Glob（Explore 另含 Bash/WebSearch/WebFetch） |
-| 🛠 执行（Execution） | `Code-Executor`（首选）/ `general-purpose`（兜底） | 严格按主 Agent 蓝图用 Edit/Write 精确改文件，不做额外改动 | Read, Edit, Write |
+| 🛠 执行（Execution） | `code-executor`（首选）/ `general-purpose`（兜底） | 严格按主 Agent 蓝图用 Edit/Write 精确改文件，不做额外改动 | Read, Edit, Write |
 | ⚙️ 命令（Command） | `cmd-executor` | 安全执行 mvn/npm/docker/git 等 shell 命令并返回结果；可联网查阅 | Bash, WebFetch, WebSearch |
 
 > 主 Agent 自身可访问全部工具，但遵循「能调度就不自己动手」的原则，仅在**无法拆分的小修小补**或**兜底**时直接处理。
@@ -40,7 +40,7 @@ description: 定义了主Agent调度检索、执行、命令三个子Agent的标
    ├──► 阶段1 检索：code-retriever / Explore
    │       输入：文件列表 + 关键词   输出：定位结论（路径:行号、片段）
    │
-   ├──► 阶段2 执行：Code-Executor / general-purpose
+   ├──► 阶段2 执行：code-executor / general-purpose
    │       输入：执行蓝图（基于阶段1结论）  输出：修改/新增的文件清单
    │
    └──► 阶段3 命令：cmd-executor
