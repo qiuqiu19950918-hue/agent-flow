@@ -1,17 +1,17 @@
 ---
 name: agent-flow
-description: 定义了主Agent调度检索、执行、命令三个子Agent的标准工作流、广播透明度、分级错误处理及兜底转交内置Agent（Explore/General-Purpose）的完整规范。当需要执行复杂的多步骤开发任务（如代码分析、修改、打包）时自动匹配。
+description: 定义了主Agent调度检索、执行、命令子Agent的标准工作流、广播透明度、分级错误处理及兜底转交内置Agent（Explore/General-Purpose）的完整规范。含脚本开发路由（动态开发归 general-purpose）、子Agent自愈预算（含 cmd-executor 自愈授权契约：十类可改 / 四维红线 / 结构化上报 / 分层验收）、L2 前置审核闸门、L3 主Agent接管三选项、趋势止损等机制。当需要执行复杂的多步骤开发任务（如代码分析、修改、打包、迁移脚本）时自动匹配。
 ---
 
 # agent-flow · 多智能体调度工作流
 
 > **调用命令**：`$agent-flow`（Skill 用 `$` 前缀；`/` 前缀为 Command 专用，不可用于 Skill）。
 > **自动匹配**：当任务描述与本 `description` 意图匹配时，ZCode 会自动询问是否加载本 Skill，无需手动输入 `$agent-flow`。
-> **配套文档**：三个子 Agent 的完整配置见 `agents.md`。
+> **配套文档**：四个子 Agent 的完整配置见 `agents.md`。
 
 ## 1. 核心思想
 
-主 Agent（Orchestrator）不直接动手写代码 / 跑命令，而是**调度**三个专职子 Agent 完成「检索 → 执行 → 命令」流水线。主 Agent 的职责是：
+主 Agent（Orchestrator）不直接动手写代码 / 跑命令，而是**调度**子 Agent 完成「检索 → 执行 → 命令」流水线（执行层含 code-executor 静态编辑与 general-purpose 动态开发两个角色）。主 Agent 的职责是：
 
 1. **拆解任务** → 确定需要哪些子 Agent、按什么顺序。
 2. **分发指令** → 给每个子 Agent 一段**自包含**、边界清晰的 prompt。
@@ -23,8 +23,8 @@ description: 定义了主Agent调度检索、执行、命令三个子Agent的标
 | 子角色（逻辑层） | 内置 subagent_type（执行层） | 职责 | 可用工具 |
 |---|---|---|---|
 | 📡 检索（Retrieval） | `code-retriever`（首选，含 broad fan-out）/ `Explore`（兜底） | 精准定位代码（符号/定义/片段）**及** broad fan-out 大范围扫描目录与内容；Explore 仅在需联网/shell 管道时兜底 | Read, Grep, Glob（Explore 另含 Bash/WebSearch/WebFetch） |
-| 🛠 执行（Execution） | `code-executor`（首选）/ `general-purpose`（兜底） | 严格按主 Agent 蓝图用 Edit/Write 精确改文件，不做额外改动 | Read, Edit, Write |
-| ⚙️ 命令（Command） | `cmd-executor` | 安全执行 mvn/npm/docker/git 等 shell 命令并返回结果；可联网查阅 | Bash, WebFetch, WebSearch |
+| 🛠 执行（Execution） | `code-executor`（首选，静态编辑）/ `general-purpose`（动态开发首选，兜底） | code-executor 严格按蓝图精确改文件不扩范围；general-purpose 负责需要运行时反馈的脚本/可执行代码（写→跑→改→再跑闭合循环） | code-executor: Read, Edit, Write；general-purpose: 全集 |
+| ⚙️ 命令（Command） | `cmd-executor` | 安全执行 shell 命令并返回结果；可对已写好的脚本做**受限自愈**（见 `command.md` 自愈授权契约） | Bash, Edit, WebFetch, WebSearch |
 
 > 主 Agent 自身可访问全部工具，但遵循「能调度就不自己动手」的原则，仅在**无法拆分的小修小补**或**兜底**时直接处理。
 > 各子 Agent 的颜色标记、系统提示词、完整工具列表见 **`agents.md`**。
@@ -68,11 +68,60 @@ description: 定义了主Agent调度检索、执行、命令三个子Agent的标
 
 | 级别 | 触发条件 | 主 Agent 动作 |
 |---|---|---|
-| **L1 重试** | 子 Agent 报错 / 输出空 / 超时 | **重写更清晰的 prompt**（补上下文、缩范围），最多重试 1 次。检索类可换用 code-retriever 自身的 broad fan-out（Glob 扫命名 + Grep 批量搜内容） |
-| **L2 兜底转交** | L1 仍失败 | 转交**另一类内置 Agent**：检索失败→`Explore`（利用其 Bash/WebSearch/WebFetch）；执行失败→`general-purpose`；命令失败→主 Agent 自行用 Bash |
-| **L3 主 Agent 接管** | L2 仍失败 / 任务过小不值得调度 | 主 Agent 直接用自身工具完成，并在回复中**说明为何接管** |
+| **L1 当前角色自愈** | 子 Agent 报错 / 输出空 / 超时 / 命令非零退出 | 当前角色内部自愈：cmd-executor 用智能重试 + 受限 Edit 自愈（见 `command.md` 自愈授权契约）；code-retriever 切 broad fan-out；code-executor 由主 Agent 补正锚点重派 1 次。**预算见 §4.1** |
+| **L2 兜底转交 + 审核闸门** | L1 预算耗尽 / 趋势失控 | 转交另一类内置 Agent 前，**先按 §4.2 生成执行方案给用户审核**；通过后放行 `general-purpose`（执行/脚本类）或 `Explore`（检索类）。检索类若无联网/shell 管道需求可不转交 |
+| **L3 主 Agent 接管** | L2 预算耗尽 / 审核未通过 / 任务过小 | 主 Agent 按 §4.3 三选项接管 |
 
-> 升级时必须向用户广播："⚠️ `code-retriever` 失败（原因），升级为兜底 agent `Explore`。"
+> 升级时必须向用户广播："⚠️ `cmd-executor` 自愈 N 次未通过（原因），触发 L2 转交 `general-purpose`，已生成执行方案待审核。"
+
+### 4.1 自愈预算（防止子 Agent 无限循环）
+
+子 Agent 自愈必须遵守**三层预算**，任一耗尽立即上交，禁止"再试一次"：
+
+| 预算维度 | L1（当前角色） | L2（兜底角色 general-purpose） | 说明 |
+|---|---|---|---|
+| 单角色自愈次数 | cmd: ≤3 次 / code-retriever: ≤1 次换策略 / code-executor: ≤1 次补锚点 | ≤**5 次** | general-purpose 预算放宽，因 L1 解决不了的难任务需更多迭代空间 |
+| 角色转交次数 | — | ≤1 次（L1→L2 仅一次转交） | 多次转交 = 多次重置上下文 = 浪费 |
+| 总迭代硬上限 | — | 累计 ≤**8 轮**（L1 的 3 + L2 的 5） | 超过 = 根因子 Agent 理解不了 |
+
+**趋势止损（软上限，优先于次数）**：即使预算未满，出现以下任一信号立即上交，不等次数耗尽：
+- 错误数量**不减反增**（雪崩）。
+- 错误位置**每轮迁移**（打地鼠/振荡，来回修不同地方）。
+- 自愈中**频发原本没有的新报错**（越改越乱）。
+
+> 原则：次数是硬天花板，趋势是软天花板，**取先到者**。自愈应是"错误逐步收敛"，一旦发现不收敛立即停。
+
+### 4.2 L2 前置审核闸门（关键质量关卡）
+
+当任务难到需要转交 `general-purpose`（L2，5 次预算）时，往往根因不在"实现"而在"方案设计"。为避免子 Agent 在错误方案上空跑 5 次，**转交前必须先过闸门**：
+
+**触发条件**：L1 预算耗尽 或 趋势失控，准备转交 general-purpose / Explore 时。
+
+**主 Agent 动作（三步）**：
+1. **诊断**：基于 L1 上交报告（触发原因 + 最后错误 + 疑似根因），判断根因类型。
+2. **生成执行方案**：向用户呈现一份待审核方案，含：
+   - 根因判断（实现偏差 / 方案设计缺陷 / 环境问题）
+   - 拟让 L2 角色做什么（目标 + 文件范围 + 约束 + 成功标志）
+   - 预计 L2 迭代预算（≤5 次）
+3. **等待用户审核**：用户通过 → 放行 L2；用户否决 / 要求调整 → 按反馈修订方案或直接进 L3。
+
+**例外（可免审核）**：检索类转交 Explore，若仅为换工具（如需联网 / shell 管道）而非方案有问题，主 Agent 可自行决定放行，无需审核——但需广播说明。
+
+> 闸门价值：在烧 5 次 L2 预算前，先排除"方案本身就错了"这个最大风险。这是整套机制里 ROI 最高的一道关卡。
+
+### 4.3 L3 主 Agent 接管三选项
+
+L2 预算耗尽 / 审核未通过 / 任务过小不值得调度时，主 Agent 接管，但**不是只能自己敲键盘**。根据 L2 上交报告的根因判断，三选一：
+
+| 报告显示根因 | 主 Agent 动作 | 典型场景 |
+|---|---|---|
+| 子 Agent 走偏了（产物基本可用，局部改错）| **从末版继续修**（主 Agent 亲自 Edit，1~2 个请求） | 脚本跑通但某处逻辑小错 |
+| 子 Agent 改乱了（产物面目全非）| **推倒重写**（主 Agent Read 原始数据 + Write 新产物） | 多轮自愈把脚本改花了 |
+| 方案设计有缺陷（不是产物错，是迁移/处理逻辑设计错）| **重新设计方案**，再决定派子 Agent 还是自己做 | 如 redundant_mirror 漏检，可能是识别逻辑设计就错了 |
+
+接管时必须向用户**说明触发了哪个选项、为何**。
+
+> 关键认知：很多时候子 Agent 反复失败的根因在主 Agent 给的蓝图/方案，而非子 Agent 能力。此时接管的第一步是**重新审视方案**，而非继续调产物。
 
 ## 5. 输出契约（每个子 Agent 回复模板）
 
@@ -92,7 +141,7 @@ description: 定义了主Agent调度检索、执行、命令三个子Agent的标
 
 ## 7. 配套资源
 本 Skill 目录下还提供子角色说明，供子 Agent 调度时参考引用：
-- `agents.md` — **三个子 Agent 的完整配置**（名称 / 颜色 / 描述 / 工具 / 系统提示词）
+- `agents.md` — **四个子 Agent 的完整配置**（名称 / 颜色 / 描述 / 工具 / 系统提示词）
 - `retrieval.md` — 检索子 Agent 工作流规范
 - `execution.md` — 执行子 Agent 工作流规范
 - `command.md` — 命令子 Agent 工作流规范
