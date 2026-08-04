@@ -4,7 +4,8 @@
 负责"跑命令"——构建、测试、打包、安装依赖、git 操作等 shell 命令的**安全执行**。
 
 ## 首选
-- **唯一**：`cmd-executor` —— 系统命令执行专家，负责安全地执行 Bash 命令（mvn package、npm install、docker build 等）并返回结果；可联网查阅文档/API；可对已写好脚本做受限自愈。（工具：Bash、Edit、WebFetch、WebSearch）
+- **命令执行唯一**：`cmd-executor` —— 系统命令执行专家，负责安全地执行 Bash 命令（mvn package、npm install、docker build 等）并返回结果；可对已写好脚本做受限自愈。（工具：Bash、Edit、WebFetch、WebSearch）
+- **联网检索首选**：`cmd-executor` —— 拥有 `WebSearch` / `WebFetch` 工具，是 agent-flow 中**联网检索的首选执行者**（查阅线上文档/API、搜索技术资料、抓取网页内容）。检索失败时按下方「联网检索升级链」升级。
 
 > 命令失败时一般**不换 agent**，而是由主 Agent 决策：修复 → 重跑，或主 Agent 自行用 Bash 接管（L3）。
 
@@ -114,3 +115,20 @@ cmd-executor 已获 `Edit` 工具，可对 code-executor / general-purpose 写�
 ## 安全约束
 - 交互式 flag（如 `git rebase -i`、`git add -i`）不可用。
 - 仅在用户明确要求时才 commit / push；在默认分支上需先建分支。
+
+## 联网检索升级链（WebSearch / WebFetch 失败处理）
+
+cmd-executor 承担联网检索（WebSearch 搜索 / WebFetch 抓取）。检索失败（无结果 / 内容不符 / 抓取超时）时按级别升级：
+
+| 级别 | 触发条件 | 动作 | 预算 |
+|---|---|---|---|
+| **L1 cmd-executor 自愈** | 首次检索无结果 / 不符 | 重写检索词、换搜索角度、改用 WebFetch 直接抓已知 URL 重试 | ≤**3 次** |
+| **L2 转交 general-purpose** | L1 耗尽 / 趋势失控 | 主 Agent 按 `SKILL.md` §4.2 生成检索方案给用户审核；通过后放行 general-purpose（工具全集，可配合 WebSearch + WebFetch + 推理多角度检索） | ≤**5 次** |
+| **L3 主 Agent 接管** | L2 耗尽 / 审核未通过 | 主 Agent 按 `SKILL.md` §4.3 三选项接管（通常为自行 WebSearch/WebFetch） | — |
+
+**趋势止损**（优先于次数，任一触发即上交）：搜索结果与目标越来越远 / 多次抓取都 403 或超时 / 换了关键词仍无相关内容。
+
+**与本地检索的区分**：
+- **本地代码/文件检索**（项目内符号/定义/片段）→ `code-retriever`（见 `retrieval.md`），不走本链。
+- **联网检索**（线上文档/API/技术资料）→ `cmd-executor`（本链），不走 code-retriever。
+- 两者都失败时，本地兜底 `Explore`、联网兜底 `general-purpose`，最终都可由主 Agent 接管。

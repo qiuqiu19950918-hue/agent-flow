@@ -37,8 +37,8 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
    ▼
 [主 Agent] 拆解 + 制定执行蓝图（TodoWrite）
    │
-   ├──► 阶段1 检索：code-retriever / Explore
-   │       输入：文件列表 + 关键词   输出：定位结论（路径:行号、片段）
+   ├──► 阶段1 检索：本地检索→code-retriever / Explore；联网检索→cmd-executor / general-purpose
+   │       本地输入：文件列表 + 关键词   联网输入：检索词/URL   输出：定位结论 / 抓取内容
    │
    ├──► 阶段2 执行：code-executor / general-purpose
    │       输入：执行蓝图（基于阶段1结论）  输出：修改/新增的文件清单
