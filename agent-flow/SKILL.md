@@ -135,8 +135,28 @@ L2 预算耗尽 / 审核未通过 / 任务过小不值得调度时，主 Agent �
 ```
 
 ## 6. 边界与本 Skill 不做什么
-- **不做**：浏览器自动化（由 `control-browser` skill 专用，且仅主 Agent 可用，禁止子 Agent 加载）。
 - **不做**：盲目合并/删除用户已有文件——改写前先 Read，与描述矛盾则先反馈不擅自执行。
+
+### 6.0 浏览器自动化的分级授权（已解除一刀切禁令，改为按验证类型分级）
+
+> **变更说明**：原"仅主 Agent 可用、禁止子 Agent 加载"为政策性禁令（agent-flow §6 + control-browser skill 各设一道），非技术限制。经实测验证（general-purpose 子 Agent 成功调用 `mcp__playwright__` 全套 23 工具，完成导航/快照/截图），确认 MCP 浏览器工具对子 Agent 技术上完全可用。现改为**按验证类型分级授权**，并标注两条实测边界。
+
+**分级路由**：
+
+| 验证类型 | 执行者 | 依据 |
+|---|---|---|
+| **客观结构验证**（元素存在性 / 文案匹配 / selector 定位 / HTTP 状态 / 控制台错误）| ✅ `general-purpose`（用 accessibility 快照文本判断，不依赖看图）| 实测：子 Agent 能拿到并解析 accessibility 树文本 |
+| **主观视觉验证**（布局美感 / 间距 / 颜色 / 渲染效果 / 设计还原度）| ❌ **主 Agent 独占**（子 Agent 模型通常不支持图像输入，看不了截图）| 实测：子 Agent 能生成截图 PNG 但无法"看"图 |
+| **客观功能测试套件**（`npx playwright test` 跑 .spec.js）| ✅ `cmd-executor`（Bash 执行 + 自愈契约）| 属命令执行范畴 |
+
+**两条实测边界（派发浏览器任务时必须遵守）**：
+
+1. **图像输入限制**：子 Agent（如 `deepseek-v4-flash`）可生成截图但无法读取图片内容。需视觉判断的任务不得下放；若需让子 Agent 辅助采集，应让它回传 **accessibility 快照文本**而非截图给主 Agent 判读。
+2. **浏览器状态不跨会话继承**：MCP Playwright 维护单一浏览器实例，子 Agent 是新会话，**不继承主 Agent 之前的页面 / 登录态 / cookie**。子 Agent 接手后须从零导航；需要登录态的测试，要么子 Agent 自行重新登录，要么主 Agent 完成登录后再把后续验证整段交给子 Agent。
+
+**止损点**：子 Agent 遇 selector 找不到 / 元素不可见 / 需理解 DOM 结构才能定位 → **立即上报，不盲猜**（等主 Agent 用 MCP 浏览器查一次正确 selector 再交回），避免浪费自愈预算。
+
+> 注：`control-browser` skill 仍声明 "Main-agent-only"。若要彻底解除第二层禁令，可不在子 Agent 任务里加载该 skill，直接用原始 `mcp__playwright__` 工具——本分级授权即采用此方式。
 
 ### 6.1 主 Agent 自行编辑的额度与防呆机制
 
