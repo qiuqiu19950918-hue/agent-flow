@@ -28,6 +28,8 @@
 [证据] path/to/file.java:42  的关键片段
 ```
 
+> **检索类不套用"成功回摘要"**（见 `SKILL.md` §5.3）：检索结果是信息型产物，是主 Agent 后续工作的原料，**必须以"精确切片"（path:line + 关键片段）形式留在主 Agent 上下文**，不能压缩为"找到了"这种摘要（无价值），也不能回整文件（上下文爆炸）。token 控制**靠派发时给清范围/关键词/要几行**，让子 Agent 切得准。
+
 ## 何时升级（L1→L2）
 - 返回空结果、找不到符号、或工具报错 → 主 Agent **重写更具体的 prompt 重试 1 次**（可换用 code-retriever 自身的 broad fan-out：Glob 扫命名 + Grep 批量搜内容）。
 - 仍失败 → 转交 `Explore`，利用其额外的 `Bash`/`WebSearch`/`WebFetch`（联网或 shell 管道）突破本地文件检索的局限。
