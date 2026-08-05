@@ -40,11 +40,12 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
    ├──► 阶段1 检索：本地检索→code-retriever / Explore；联网检索→cmd-executor / general-purpose
    │       本地输入：文件列表 + 关键词   联网输入：检索词/URL   输出：定位结论 / 抓取内容
    │
-   ├──► 阶段2 执行：code-executor / general-purpose
-   │       输入：执行蓝图（基于阶段1结论）  输出：修改/新增的文件清单
+   ├──► 阶段2 执行：code-executor（静态编辑）/ general-purpose（动态开发，写跑合一）
+   │       静态输入：精确蓝图(old/new)   动态输入：语义蓝图(目标+成功标志)
+   │       静态输出：文件清单   动态输出：已验证产物 + 运行结果（写跑不拆开，见 execution.md）
    │
-   └──► 阶段3 命令：cmd-executor
-           输入：需执行的构建/测试/打包命令   输出：命令退出码与关键输出
+   └──► 阶段3 命令：cmd-executor（仅跑现成命令/脚本，不跑动态开发产物）
+           输入：构建/测试/打包/git 命令   输出：命令退出码与关键输出
    │
    ▼
 [主 Agent] 汇总 → 广播给用户 → （失败则升级处理）

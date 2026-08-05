@@ -18,7 +18,11 @@
 
 **判断技巧**：分水岭是"这个产物要不要执行验证"。要 → general-purpose；不要 → code-executor。
 
-> **禁止**：用 code-executor ↔ cmd-executor 乒乓处理动态开发任务（会爆炸 H 请求，每次迭代 ≈ 5~6 个主 Agent 请求）。脚本开发应整体交给 general-purpose。
+> **禁止拆开写与跑（硬规则）**：动态开发任务的「写脚本」和「跑脚本验证」**必须由同一个 general-purpose 闭合**，不得拆成"general-purpose 写 → 主 Agent 居中 → cmd-executor 跑"。拆开的代价：① 多 1 次主 Agent 调度往返；② 失去"跑出来报错就自己修"的自愈能力，失败要回流主 Agent。即便脚本看似无迭代需求，也应让 general-purpose 写完即自跑验证——跑成功则结果直接回流，跑失败（如依赖未装/字段错）则自行修复重跑（自愈预算 ≤5 次），均无需主 Agent 介入。
+>
+> **cmd-executor 的职责不变**：只跑**现成的、别人写的或已存在的**命令/脚本（构建、测试、打包、git、跑现成 .py），以及按自愈授权契约对已写好脚本做受限小修。cmd-executor 不承担"动态开发产物的首跑验证"——那是 general-purpose 的职责。
+
+**典型反例**：主 Agent 让 general-purpose"只写不跑，运行交给后续命令子 Agent"——这把 general-purpose 退化成了 code-executor，丧失了动态开发的核心价值（闭合循环）。正确做法：蓝图直接写"编写脚本并自行运行验证，跑通后返回结果汇总，如遇环境问题自行修复重跑"。
 
 ## 主 Agent 调度它时必须提供（执行蓝图）
 1. **绝对路径**（不允许相对路径）。
