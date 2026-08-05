@@ -120,6 +120,8 @@ cmd-executor 已获 `Edit` 工具，可对 code-executor / general-purpose 写�
 
 ## 联网检索升级链（WebSearch / WebFetch 失败处理）
 
+> **分工**：本地代码/文件检索归 code-retriever（见 retrieval.md，支持 pmem 起点或关键词）；联网检索（线上文档/API/技术资料）归 cmd-executor（本节）。两者职责不重叠。
+
 cmd-executor 承担联网检索（WebSearch 搜索 / WebFetch 抓取）。检索失败（无结果 / 内容不符 / 抓取超时）时按级别升级：
 
 | 级别 | 触发条件 | 动作 | 预算 |

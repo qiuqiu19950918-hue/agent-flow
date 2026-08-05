@@ -38,7 +38,8 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
 [主 Agent] 拆解 + 制定执行蓝图（TodoWrite）
    │
    ├──► 阶段1 检索：本地检索→code-retriever / Explore；联网检索→cmd-executor / general-purpose
-   │       本地输入：文件列表 + 关键词   联网输入：检索词/URL   输出：定位结论 / 抓取内容
+   │       本地输入：pmem anchor(可选,需装有pmem) 或 文件列表+关键词   联网输入：检索词/URL
+   │       输出：精确切片(path:line+代码) / 抓取内容；pmem起点任务含偏差标注
    │
    ├──► 阶段2 执行：code-executor（静态编辑）/ general-purpose（动态开发，写跑合一）
    │       静态输入：精确蓝图(old/new)   动态输入：语义蓝图(目标+成功标志)
@@ -55,6 +56,7 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
 - **prompt 自包含**：每个子 Agent 是全新会话，必须带上完整上下文（目标、文件、约束），不能依赖主 Agent 内存。
 - **并行优先**：当阶段内存在多个**相互独立**的子任务（无共享状态、无顺序依赖）时，在同一条消息里并行发起多个 Agent 调用。多个独立检索点应发起**多个 code-retriever 并行**，各自定位一个符号/文件。
 - **结论导向**：要求子 Agent 返回**结论**（结论 + 关键证据），而非整文件转储。
+- **pmem 快路径（可选）**：若项目装有 project-memory skill，主 Agent 先加载 pmem 图谱（首轮 cat，续轮 0 请求），用 1-hop 影响分析框选范围——结构关系（实体/边/规则）直接进蓝图硬包含，anchor 作 code-retriever 检索起点。无 pmem 时走关键词起点，不影响正常运行。pmem anchor 失效由 code-retriever 实地核对标注，触发 pmem 归档更新（偏差反馈闭环）。
 
 ### 3.2 广播透明度（Transparency）
 每次调度子 Agent 时，主 Agent 必须向用户**显式**报告：
