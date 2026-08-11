@@ -7,7 +7,7 @@
 - **命令执行唯一**：`cmd-executor` —— 系统命令执行专家，负责安全地执行 Bash 命令（mvn package、npm install、docker build 等）并返回结果；可对已写好脚本做受限自愈。（工具：Bash、Edit、WebFetch、WebSearch）
 - **联网检索首选**：`cmd-executor` —— 拥有 `WebSearch` / `WebFetch` 工具，是 agent-flow 中**联网检索的首选执行者**（查阅线上文档/API、搜索技术资料、抓取网页内容）。检索失败时按下方「联网检索升级链」升级。
 
-> 命令失败时一般**不换 agent**，而是由主 Agent 决策：修复 → 重跑，或主 Agent 自行用 Bash 接管（L3）。
+> 命令失败时由主 Agent 决策：让 `cmd-executor` 按自愈授权契约自愈，或触发 §4.3 L3 接管时主 Agent 自行用 Bash。**常规执行（L1/L2 阶段）禁主 Agent 自己跑 Bash，一律派 `cmd-executor`**（见 `SKILL.md` §6.1）。
 
 ## 主 Agent 调度它时必须提供
 1. **工作目录**（绝对路径，避免 `cd` 触发权限提示）。
@@ -128,7 +128,7 @@ cmd-executor 承担联网检索（WebSearch 搜索 / WebFetch 抓取）。检索
 |---|---|---|---|
 | **L1 cmd-executor 自愈** | 首次检索无结果 / 不符 | 重写检索词、换搜索角度、改用 WebFetch 直接抓已知 URL 重试 | ≤**3 次** |
 | **L2 转交 general-purpose** | L1 耗尽 / 趋势失控 | 主 Agent 按 `SKILL.md` §4.2 生成检索方案给用户审核；通过后放行 general-purpose（工具全集，可配合 WebSearch + WebFetch + 推理多角度检索） | ≤**5 次** |
-| **L3 主 Agent 接管** | L2 耗尽 / 审核未通过 | 主 Agent 按 `SKILL.md` §4.3 三选项接管（通常为自行 WebSearch/WebFetch） | — |
+| **L3 主 Agent 接管** | L2 耗尽 / 审核未通过 | 主 Agent 按 `SKILL.md` §4.3 三选项接管（**仅限 L3 硬触发**；通常为自行 WebSearch/WebFetch）。L1/L2 阶段禁主 Agent 自己跑 WebSearch/WebFetch | — |
 
 **趋势止损**（优先于次数，任一触发即上交）：搜索结果与目标越来越远 / 多次抓取都 403 或超时 / 换了关键词仍无相关内容。
 
