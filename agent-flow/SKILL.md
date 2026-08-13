@@ -18,6 +18,22 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
 3. **广播透明** → 向用户实时汇报「正在调度哪个子 Agent、调用哪个模型」。
 4. **分级错误处理** → 子 Agent 失败时，按级别升级（重试 → 兜底转交内置 Agent）。
 
+## 1.1 设计权归属与三级能力阶梯（v4·最高原则）
+
+> **设计权归属**：主 Agent 拥有**所有影响正确性的设计决策**——架构、算法、几何/物理推导、参数取值、物理极限判断、**以及验收方案**。子 Agent 是执行层，只做**机械翻译（照抄蓝图为代码）**与**被明确授权的运行时执行（跑命令/跑断言/十类受限自愈）**，**不做方案设计**。这是"主=脑 / 子=手"哲学的严格执行。
+>
+> **实测依据**（4 组对比实验）：主 Agent 把设计权下放给子 Agent（语义蓝图）时，产物质量完全取决于子 Agent 能力——强子 Agent 能兜住，弱子 Agent（flash）认知过载空响应、烧 220 万 token 无产出；而主 Agent 亲手做完所有设计后给精确蓝图，即便弱子 Agent 也"全一次过零自愈"。**子 Agent 的命运由主 Agent 的蓝图精度决定，而非子 Agent 模型本身**。故把"主做全部设计"从最佳实践提升为**硬规则**。
+
+所有 correctness-critical 的实现工作，按**能力阶梯**逐级兜底（不是"放权阶梯"——任何一级都执行主 Agent 的精确蓝图，设计权始终在主）：
+
+| 级 | 执行者 | 模型定位 | 何时用 |
+|---|---|---|---|
+| **Tier1（首选）** | `code-executor`（照抄蓝图为代码，无 shell）+ `cmd-executor`（跑命令/跑断言套件 + 十类受限自愈） | 最弱但最便宜 | 主 Agent 已把设计推到精确蓝图（old/new 或坐标级）时，**一律走 Tier1** |
+| **Tier2（次级兜底）** | `general-purpose`（更强的手，工具全集含 shell） | 中（>code/cmd-executor，<主 Agent） | 仅当 Tier1 在主 Agent 精确蓝图下**仍无法收敛**时，主 Agent **重新生成更细方案**后再派。**general-purpose 拿到的仍是精确蓝图，不是语义蓝图** |
+| **Tier3（主接管）** | 主 Agent 亲自下场 | 最强 | Tier2 仍失败 / 趋势失控 / §4.3 L3 硬触发 |
+
+> **路由翻转（相对 v3）**：v3 把 general-purpose 列为"动态开发首选"，实测导致主 Agent 偷懒走"语义蓝图"放权设计。v4 把 general-purpose 降为 Tier2 兜底，Tier1（code-executor+cmd-executor）成为唯一首选，从机制上堵死放权。阶梯升级是**换更强的手**，不是**放设计权**。
+
 ## 1.5 三类子 Agent 差异化对待（重要原则）
 
 不同类型的子 Agent，其结果的可验证性不同，主 Agent 应差异化对待：
@@ -35,10 +51,10 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
 | 子角色（逻辑层） | 内置 subagent_type（执行层） | 职责 | 可用工具 |
 |---|---|---|---|
 | 📡 检索（Retrieval） | `code-retriever`（首选，含 broad fan-out）/ `Explore`（兜底） | 精准定位代码（符号/定义/片段）**及** broad fan-out 大范围扫描目录与内容；Explore 仅在需联网/shell 管道时兜底 | Read, Grep, Glob（Explore 另含 Bash/WebSearch/WebFetch） |
-| 🛠 执行（Execution） | `code-executor`（首选，静态编辑）/ `general-purpose`（动态开发首选，兜底） | code-executor 严格按蓝图精确改文件不扩范围；general-purpose 负责需要运行时反馈的脚本/可执行代码（写→跑→改→再跑闭合循环） | code-executor: Read, Edit, Write；general-purpose: 全集 |
+| 🛠 执行（Execution） | `code-executor`（Tier1 首选，照抄蓝图）/ `general-purpose`（Tier2 次级兜底） | code-executor 严格按主 Agent 精确蓝图照抄为代码、不扩范围、不做设计；general-purpose 仅当 Tier1 无法收敛时承接更难的实现（更强的手），**仍执行主的精确蓝图，不做方案设计** | code-executor: Read, Edit, Write；general-purpose: 全集 |
 | ⚙️ 命令（Command） | `cmd-executor` | 安全执行 shell 命令并返回结果；可对已写好的脚本做**受限自愈**（见 `command.md` 自愈授权契约） | Bash, Edit, WebFetch, WebSearch |
 
-> 主 Agent 自身可访问全部工具，但**禁止直接编写代码（Edit/Write）与执行命令（Bash）**，必须调度子 Agent 完成。**唯一例外是 §4.3 L3 接管（硬触发兜底）**——L3 触发条件为硬性客观条件（预算耗尽 + 趋势失控），不是主 Agent 主观判断，不构成豁免口子。详见 §6.1。
+> 主 Agent 自身可访问全部工具，但**禁止直接编写代码（Edit/Write）与执行命令（Bash）**，必须调度子 Agent 完成；且**必须亲自完成所有影响正确性的设计**（见 §6.1 设计权归属）。**唯一例外是 §4.3 L3 接管（硬触发兜底）**——L3 触发条件为硬性客观条件（预算耗尽 + 趋势失控），不是主 Agent 主观判断，不构成豁免口子。详见 §6.1。
 > 各子 Agent 的颜色标记、系统提示词、完整工具列表见 **`agents.md`**。
 
 ## 3. 标准工作流（三阶段）
@@ -53,9 +69,10 @@ description: 定义了主Agent调度检索、执行、命令子Agent的标准工
    │       本地输入：pmem anchor(可选,需装有pmem) 或 文件列表+关键词   联网输入：检索词/URL
    │       输出：精确切片(path:line+代码) / 抓取内容；pmem起点任务含偏差标注
    │
-   ├──► 阶段2 执行：code-executor（静态编辑）/ general-purpose（动态开发，写跑合一）
-   │       静态输入：精确蓝图(old/new)   动态输入：语义蓝图(目标+成功标志)
-   │       静态输出：文件清单   动态输出：已验证产物 + 运行结果（写跑不拆开，见 execution.md）
+   ├──► 阶段2 执行：Tier1 code-executor（照抄精确蓝图）+ cmd-executor（跑断言套件 + 十类自愈）
+   │       输入：主 Agent 的【精确蓝图】(old/new 或坐标级) + 【验收断言套件】(§5.7)
+   │       输出：文件清单 + cmd-executor 的断言 PASS/FAIL 报告
+   │       Tier1 无法收敛 → Tier2 general-purpose（仍精确蓝图）→ Tier3 主接管（见 §1.1）
    │
    └──► 阶段3 命令：cmd-executor（仅跑现成命令/脚本，不跑动态开发产物）
            输入：构建/测试/打包/git 命令   输出：命令退出码与关键输出
@@ -216,6 +233,28 @@ L2 预算耗尽 / 审核未通过 / 任务过小不值得调度时，主 Agent �
 
 **异常处置**：若子 Agent 回复明显违反 `[返回格式]`（如精确蓝图任务却复述了大段"做了什么"），主 Agent 应在汇总时**只提取有效部分**（状态+指针），忽略冗余复述；多次违反累积为"该子 Agent 遵循度低"信号，考虑在后续蓝图里加粗强调或升级模型。
 
+### 5.7 验收方案形式化（v4 新增·硬约束）
+
+**原则：主 Agent 必须把验收设计为【可执行断言套件】，连同蓝图一起下发。** 验收不再分"客观/语义"——任何"语义"检查一旦主 Agent 把它形式化为可执行断言（如 `assert headland_segment_count == 4`、`assert coverage <= 100`、`oob_count == 0`），它就变成 cmd-executor 能机械执行的"客观"检查。
+
+> **实测依据**：组2"地头只耕 2 边"bug，覆盖率 91.8% 客观上"达标"而漏过——根因是没人把"地头条数==4"写成断言。若主 Agent 写了该断言，弱子 Agent 跑一下也能抓到。**语义验收的缺失，本质是主 Agent 设计断言不完整**。
+
+派发执行/命令任务时，蓝图必须含 `[验收断言]` 字段（与 §5.5 的 `[返回格式]` 并列）：
+
+```
+[验收断言]（主 Agent 设计，随蓝图下发 cmd-executor 执行）
+- 命令：python main.py（或 pytest / 构建命令）
+- 通过标准（可执行）：exit==0 AND coverage>=85 AND oob_count==0 AND sm_violation==0 AND coverage<=100
+- 回报：[结论]PASS/FAIL + [证据]上述各指标实测值
+[残余语义检查]（主 Agent 自己执行，不下发——子 Agent 做不了）
+- Read path_planner.py 确认地头是 4 边完整环带
+- Read+图像分析输出图，确认结构符合意图（主独占，§6.0）
+```
+
+- **断言套件本身也是代码**：由主 Agent 设计、code-executor 照抄成 test 文件、cmd-executor 跑——与产品代码同等走 Tier1 管线。
+- **bootstrapping 提醒**：断言写错 = 验收形同虚设。主 Agent 设计断言需认真，关键断言尽量附"已知 good/bad 样例"自检。
+- **无法形式化的残余**（图像/美观判断）：主 Agent 自己做（§6.0 主独占视觉），不下发。
+
 ## 6. 边界与本 Skill 不做什么
 - **不做**：盲目合并/删除用户已有文件——改写前先 Read，与描述矛盾则先反馈不擅自执行。
 
@@ -242,9 +281,26 @@ L2 预算耗尽 / 审核未通过 / 任务过小不值得调度时，主 Agent �
 
 ### 6.1 主 Agent 编写/执行权限与 L3 兜底解锁
 
+**【设计权归属：主 Agent 必须亲自完成所有影响正确性的设计】**
+
+主 Agent 的核心职责不仅是"不亲自编写/执行"，更是"**亲自设计**"。下列设计决策**必须由主 Agent 完成**，不得下放给子 Agent：
+1. 架构、模块划分、接口契约。
+2. 核心算法、几何/物理推导、参数取值、物理极限判断。
+3. 验收方案（可执行断言套件，见 §5.7）。
+
+子 Agent 只负责：照抄蓝图为代码（code-executor）、跑命令/跑断言/十类受限自愈（cmd-executor）、以及在 Tier2 承接更难的实现（general-purpose，仍执行精确蓝图）。
+
+**派发前自检闸门（硬规则）**：派发任何 correctness-critical 任务前，主 Agent 必须显式自检——
+> "这个任务里，影响正确性的设计（算法/几何/参数/验收）我亲手推完了吗？还是甩给子 Agent 自己决定了？"
+> - 推完了 → 给精确蓝图（old/new 或坐标级 + 验收断言），派 Tier1。
+> - 没推完、且纯推理能解决 → **禁止派发**，主 Agent 先补完设计。
+> - 没推完、且需运行时搜索才能定 → 仅此情形可授权子 Agent 在【主定的 success criteria + 验证函数】约束内搜索数值解，蓝图显式标注"授权搜索"，不算放权。
+
+> 实测依据：主 Agent 有能力做精确设计（同模型在趋势止损后被迫接管时做到了坐标级），但默认偷懒走"语义蓝图"放权——不能靠自觉，必须靠闸门强制。
+
 **【硬规则：L1/L2 阶段绝对禁止】**
 主 Agent 在 L1/L2 阶段**绝对禁止**直接使用 Edit/Write/Bash 工具：
-- **所有编写任务**（无论 1 行还是 1000 行，无论新文件还是改旧文件）→ 派 `code-executor`（静态编辑）/ `general-purpose`（动态开发）
+- **所有编写任务**（无论 1 行还是 1000 行，无论新文件还是改旧文件）→ 派 `code-executor`（Tier1 首选，照抄精确蓝图）；仅 Tier1 无法收敛时才升级 `general-purpose`（Tier2 兜底，见 §1.1）
 - **所有执行/验证任务**（含 grep/wc/git status 等小输出命令，含"需主 Agent 基于输出决策"的命令）→ 派 `cmd-executor`
   - 需决策的输出：主 Agent 在蓝图里要求 cmd-executor 回传"决策所需关键行"，但**不得为拿原始输出而亲自 Bash**
 
